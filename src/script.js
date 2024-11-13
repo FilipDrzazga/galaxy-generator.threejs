@@ -15,8 +15,15 @@ const canvas = document.querySelector("canvas.webgl");
 const scene = new THREE.Scene();
 
 const parameters = {
-  quantity: 1000,
+  quantity: 100000,
   size: 0.01,
+  radius: 5,
+  branches: 3,
+  spin: 1,
+  randomness: 1,
+  randomnessPower: 3,
+  insideColor: "#fdb05d",
+  outsideColor: "#db52f4",
 };
 
 let geometry;
@@ -31,22 +38,44 @@ const galaxyGenerator = () => {
   }
 
   const positions = new Float32Array(parameters.quantity * 3);
+  const colors = new Float32Array(parameters.quantity * 3);
+
+  const colorInside = new THREE.Color(parameters.insideColor);
+  const colorOutside = new THREE.Color(parameters.outsideColor);
 
   for (let i = 0; i < parameters.quantity; i++) {
     const i3 = i * 3;
-    positions[i3] = (Math.random() - 0.5) * 3;
-    positions[i3 + 1] = (Math.random() - 0.5) * 3;
-    positions[i3 + 2] = (Math.random() - 0.5) * 3;
+    // Position
+    const particlesPositionOnRadius = Math.random() * parameters.radius;
+    const spinAngle = particlesPositionOnRadius * parameters.spin;
+    const branchesAngle = ((i % parameters.branches) / parameters.branches) * Math.PI * 2;
+
+    const randomX = Math.pow(Math.random() - 0.5, parameters.randomnessPower) * (Math.random() < 0.5 ? 1 : -1);
+    const randomY = Math.pow(Math.random(), parameters.randomnessPower) * (Math.random() < 0.5 ? 1 : -1);
+    const randomZ = Math.pow(Math.random() - 0.5, parameters.randomnessPower) * (Math.random() < 0.5 ? 1 : -1);
+
+    positions[i3] = Math.cos(branchesAngle + spinAngle) * particlesPositionOnRadius + randomX;
+    positions[i3 + 1] = randomY;
+    positions[i3 + 2] = Math.sin(branchesAngle + spinAngle) * particlesPositionOnRadius + randomZ;
+
+    // Color
+    const mixedColor = colorInside.clone();
+    mixedColor.lerp(colorOutside, particlesPositionOnRadius / parameters.radius);
+    colors[i3] = mixedColor.r;
+    colors[i3 + 1] = mixedColor.g;
+    colors[i3 + 2] = mixedColor.b;
   }
 
   geometry = new THREE.BufferGeometry();
   geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+  geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
 
   material = new THREE.PointsMaterial({
     size: parameters.size,
     sizeAttenuation: true,
     depthWrite: false,
     blending: THREE.AdditiveBlending,
+    vertexColors: true,
   });
 
   point = new THREE.Points(geometry, material);
@@ -56,8 +85,15 @@ const galaxyGenerator = () => {
 
 galaxyGenerator();
 
-gui.add(parameters, "quantity").min(1000).max(100000).step(1000).onFinishChange(galaxyGenerator);
+gui.add(parameters, "quantity").min(100).max(100000).step(10).onFinishChange(galaxyGenerator);
 gui.add(parameters, "size").min(0.01).max(0.05).step(0.01).onFinishChange(galaxyGenerator);
+gui.add(parameters, "radius").min(1).max(10).step(1).onFinishChange(galaxyGenerator);
+gui.add(parameters, "branches").min(2).max(20).step(1).onFinishChange(galaxyGenerator);
+gui.add(parameters, "spin").min(-10).max(10).step(0.001).onFinishChange(galaxyGenerator);
+gui.add(parameters, "randomness").min(0.01).max(10).step(0.01).onFinishChange(galaxyGenerator);
+gui.add(parameters, "randomnessPower").min(-5).max(5).step(0.001).onFinishChange(galaxyGenerator);
+gui.addColor(parameters, "insideColor").onFinishChange(galaxyGenerator);
+gui.addColor(parameters, "outsideColor").onFinishChange(galaxyGenerator);
 
 /**
  * Sizes
